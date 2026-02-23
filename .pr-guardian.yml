@@ -1,0 +1,16 @@
+version: 1
+
+github:
+  base_url: "https://api.github.com"
+  token_env: "GITHUB_TOKEN"
+  repository: "owner/repo"
+
+checks:
+  required_labels:
+    - "ready-for-review"
+  max_files_changed: 60
+  block_draft_pr: true
+
+notifications:
+  enabled: true
+  channel: "pr-alerts"
